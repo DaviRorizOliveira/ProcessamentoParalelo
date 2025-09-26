@@ -112,13 +112,21 @@ int main() {
     */
     ios_base::sync_with_stdio(false);
 
+    ofstream csv_file("resultados.csv");
+     if (!csv_file.is_open()) {
+        cerr << "Erro ao abrir arquivo resultados.csv" << endl;
+        return 1;
+    }
+
+    csv_file << "tamMatriz,tempoSequencial,tempo2Thread,speedup2Thread,eficiencia2Thread,tempo4Thread,speedup4Thread,eficiencia4Thread,tempo8Thread,speedup8Thread,eficiencia8Thread" << endl;
+
     // Mudar esse vector, pouco otimizado
     vector<int> sizes = {128, 256, 512, 1024, 2048, 4096};
     vector<int> num_threads = {2, 4, 8};
 
     // Percorre o vetor de tamanhos de matrizes
     for (int N : sizes) {
-        cout << "Tamanho da matriz: " << N << "x" << N << endl;
+        csv_file << N << ",";
 
         // Gerar matrizes A e B
         auto A = gerar_matriz(N);
@@ -130,22 +138,20 @@ int main() {
 
         // Versão sequencial
         double tempo_seq = medir_tempo(dgemm_seq, A.get(), B.get(), C_seq.get(), N);
-        cout << "Tempo sequencial: " << tempo_seq << " segundos" << endl;
+        csv_file << tempo_seq;
 
         // Versão paralela
         for (int threads : num_threads) {
             fill(C_par.get(), C_par.get() + N * N, 0.0); // Reinicializa C_par com zeros
             double tempo_par = medir_tempo(dgemm_par, A.get(), B.get(), C_par.get(), N, threads);
-            cout << "Tempo paralelo com " << threads << " threads: " << tempo_par << " segundos" << endl;
 
             // Cálculo de métricas
             double speedup = tempo_seq / tempo_par;
             double eficiencia = speedup / threads; // Tratando eficiência como speedup dividido pelo número de threads: Confirmar com o professor se está correto
-            cout << "Speedup: " << speedup << endl;
-            cout << "Eficiência: " << eficiencia << endl;
+            csv_file << "," << tempo_par << "," << speedup << "," << eficiencia;
         }
 
-        cout << endl;
+        csv_file << endl;
     }
 
     return 0;
