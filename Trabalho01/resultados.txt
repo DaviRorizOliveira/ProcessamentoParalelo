@@ -1,0 +1,71 @@
+Tamanho da matriz: 128x128
+Tempo sequencial: 0.000574041 segundos
+Tempo paralelo com 2 threads: 0.000687631 segundos
+Speedup: 0.83481
+Eficiência: 0.417405
+Tempo paralelo com 4 threads: 0.000762288 segundos
+Speedup: 0.75305
+Eficiência: 0.188263
+Tempo paralelo com 8 threads: 0.0226062 segundos
+Speedup: 0.025393
+Eficiência: 0.00317413
+
+Tamanho da matriz: 256x256
+Tempo sequencial: 0.00511852 segundos
+Tempo paralelo com 2 threads: 0.00351444 segundos
+Speedup: 1.45642
+Eficiência: 0.728212
+Tempo paralelo com 4 threads: 0.004163 segundos
+Speedup: 1.22953
+Eficiência: 0.307382
+Tempo paralelo com 8 threads: 0.0218635 segundos
+Speedup: 0.234112
+Eficiência: 0.029264
+
+Tamanho da matriz: 512x512
+Tempo sequencial: 0.0415509 segundos
+Tempo paralelo com 2 threads: 0.0226613 segundos
+Speedup: 1.83357
+Eficiência: 0.916783
+Tempo paralelo com 4 threads: 0.0182538 segundos
+Speedup: 2.27629
+Eficiência: 0.569072
+Tempo paralelo com 8 threads: 0.0248301 segundos
+Speedup: 1.67341
+Eficiência: 0.209176
+
+Tamanho da matriz: 1024x1024
+Tempo sequencial: 0.299613 segundos
+Tempo paralelo com 2 threads: 0.183462 segundos
+Speedup: 1.6331
+Eficiência: 0.816552
+Tempo paralelo com 4 threads: 0.131284 segundos
+Speedup: 2.28218
+Eficiência: 0.570544
+Tempo paralelo com 8 threads: 0.198007 segundos
+Speedup: 1.51314
+Eficiência: 0.189142
+
+Tamanho da matriz: 2048x2048
+Tempo sequencial: 3.36069 segundos
+Tempo paralelo com 2 threads: 2.46779 segundos
+Speedup: 1.36182
+Eficiência: 0.680911
+Tempo paralelo com 4 threads: 1.35586 segundos
+Speedup: 2.47865
+Eficiência: 0.619663
+Tempo paralelo com 8 threads: 0.932274 segundos
+Speedup: 3.60483
+Eficiência: 0.450604
+
+Tamanho da matriz: 4096x4096
+Tempo sequencial: 23.5913 segundos
+Tempo paralelo com 2 threads: 15.5181 segundos
+Speedup: 1.52024
+Eficiência: 0.760122
+Tempo paralelo com 4 threads: 6.91283 segundos
+Speedup: 3.41269
+Eficiência: 0.853172
+Tempo paralelo com 8 threads: 5.71423 segundos
+Speedup: 4.12852
+Eficiência: 0.516066
