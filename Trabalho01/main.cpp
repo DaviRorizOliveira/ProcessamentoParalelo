@@ -1,105 +1,144 @@
-#include <iostream>
-#include <vector>
-#include <chrono>
-#include <random>
+#include <bits/stdc++.h> // Inclui (quase) todas as bibliotecas padrão do C++
 #include <omp.h>
 
 using namespace std;
 
-// Função para multiplicação de matrizes sequencial
-void dgemm_seq(const vector<double>& A, const vector<double>& B, vector<double>& C, int N) {
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < N; ++j) {
-            double sum = 0.0;
-            for (int k = 0; k < N; ++k) {
-                sum += A[i * N + k] * B[k * N + j];
-            }
-            C[i * N + j] = sum;
-        }
-    }
-}
+/*
+Comandos para compilar:
 
-// Função para multiplicação de matrizes paralela
-void dgemm_par(const vector<double>& A, const vector<double>& B, vector<double>& C, int N, int num_threads) {
-    omp_set_num_threads(num_threads);
-    #pragma omp parallel
-    {
-        #pragma omp for
-        for (int i = 0; i < N; ++i) {
-            for (int j = 0; j < N; ++j) {
-                double sum = 0.0;
-                for (int k = 0; k < N; ++k) {
-                    sum += A[i * N + k] * B[k * N + j];
-                }
-                C[i * N + j] = sum;
-            }
-        }
-    }
-}
+cd Trabalho01
+g++ -o main -Wall -O3 -fopenmp -march=native -mfma main.cpp
+./main
+*/
 
-// Função para gerar matriz aleatória
-vector<double> gerar_matriz(int N) {
-    vector<double> mat(N * N);
+// Função para gerar matriz aleatória com valores entre 0 e 100
+double* gerar_matriz(int N) {
+    double* mat = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
     random_device rd;
+    // Utiliza o Mersenne Twister, mais rápido que a função rand()
     mt19937 gen(rd());
-    uniform_real_distribution<> dis(0.0, 1.0);
+    uniform_real_distribution<> dis(0.0, 100.0); // Intervalo utilizado como 0 e 100
     for (int i = 0; i < N * N; ++i) {
         mat[i] = dis(gen);
     }
     return mat;
 }
 
-// Função para medir tempo e executar a multiplicação
-double medir_tempo(void (*dgemm_func)(const vector<double>&, const vector<double>&, vector<double>&, int), const vector<double>& A, const vector<double>& B, vector<double>& C, int N) {
-    auto start = chrono::high_resolution_clock::now();
-    dgemm_func(A, B, C, N);
-    auto end = chrono::high_resolution_clock::now();
-    chrono::duration<double> elapsed = end - start;
-    return elapsed.count();
+// Função para multiplicação de matrizes sequencial (ordem ikj)
+void dgemm_seq(const double* __restrict__ A, const double* __restrict__ B, double* __restrict__ C, int N) {
+    const int block_size = 128;
+    // Divide em blocos de linhas
+    for (int i = 0; i < N; i += block_size) {
+        int i_max = min(i + block_size, N);
+        // Divide em blocos intermediários
+        for (int k = 0; k < N; k += block_size) {
+            int k_max = min(k + block_size, N);
+            // Divide em blocos de colunas
+            for (int j = 0; j < N; j += block_size) {
+                int j_max = min(j + block_size, N);
+                for (int ii = i; ii < i_max; ++ii) {
+                    for (int kk = k; kk < k_max; ++kk) {
+                        double a_ik = A[ii * N + kk];
+                        for (int jj = j; jj < j_max; ++jj) {
+                            C[ii * N + jj] += a_ik * B[kk * N + jj];
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
-// Função sobrecarregada para a versão paralela que recebe 'num_threads'
-double medir_tempo(void (*dgemm_func)(const vector<double>&, const vector<double>&, vector<double>&, int, int), const vector<double>& A, const vector<double>& B, vector<double>& C, int N, int num_threads) {
-    auto start = chrono::high_resolution_clock::now();
+// Função para multiplicação de matrizes paralela (ordem ikj)
+void dgemm_par(const double* __restrict__ A, const double* __restrict__ B, double* __restrict__ C, int N, int num_threads) {
+    const int block_size = 128;
+    omp_set_num_threads(num_threads);
+    #pragma omp parallel
+    {
+        #pragma omp for
+        // Divide em blocos de linhas
+        for (int i = 0; i < N; i += block_size) {
+            // Divide em blocos intermediários
+            for (int k = 0; k < N; k += block_size) {
+                int i_max = min(i + block_size, N);
+                int k_max = min(k + block_size, N);
+                // Divide em blocos de colunas
+                for (int j = 0; j < N; j += block_size) {
+                    int j_max = min(j + block_size, N);
+                    for (int ii = i; ii < i_max; ++ii) {
+                        for (int kk = k; kk < k_max; ++kk) {
+                            double a_ik = A[ii * N + kk];
+                            #pragma omp simd
+                            for (int jj = j; jj < j_max; ++jj) {
+                                C[ii * N + jj] += a_ik * B[kk * N + jj];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Função para medir tempo (sequencial)
+double medir_tempo_seq(void (*dgemm_func)(const double*, const double*, double*, int), const double* A, const double* B, double* C, int N) {
+    double start = omp_get_wtime();
+    dgemm_func(A, B, C, N);
+    double end = omp_get_wtime();
+    return end - start;
+}
+
+// Função para medir tempo (paralela)
+double medir_tempo_par(void (*dgemm_func)(const double*, const double*, double*, int, int), const double* A, const double* B, double* C, int N, int num_threads) {
+    double start = omp_get_wtime();
     dgemm_func(A, B, C, N, num_threads);
-    auto end = chrono::high_resolution_clock::now();
-    chrono::duration<double> elapsed = end - start;
-    return elapsed.count();
+    double end = omp_get_wtime();
+    return end - start;
 }
 
 int main() {
-    vector<int> sizes = {512, 1024, 2048, 4096};
-    vector<int> num_threads = {2, 4};
+    ofstream csv_file("resultados.csv");
+    if (!csv_file.is_open()) {
+        cerr << "Erro ao abrir arquivo resultados.csv" << endl;
+        return 1;
+    }
 
-    // Multiplicação para cada tamanho de matriz (512, 1024, 2048, 4096)
+    csv_file << "tamMatriz,tempoSequencial,tempo2Thread,speedup2Thread,eficiencia2Thread,tempo4Thread,speedup4Thread,eficiencia4Thread,tempo8Thread,speedup8Thread,eficiencia8Thread" << endl;
+
+    vector<int> sizes = {128, 256, 512, 1024, 2048, 4096};
+    vector<int> num_threads = {2, 4, 8};
+
+    // Percorre o vetor de tamanhos de matrizes
     for (int N : sizes) {
-        cout << "Tamanho da matriz: " << N << "x" << N << endl;
+        csv_file << N << ",";
 
         // Gerar matrizes A e B
-        auto A = gerar_matriz(N);
-        auto B = gerar_matriz(N);
+        double* A = gerar_matriz(N);
+        double* B = gerar_matriz(N);
         
-        // Gera a matriz C com zeros
-        auto C_seq = vector<double>(N * N, 0.0);
-        auto C_par = vector<double>(N * N, 0.0);
+        // Aloca matriz C
+        double* C_seq = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
+        double* C_par = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
 
         // Versão sequencial
-        double tempo_seq = medir_tempo(dgemm_seq, A, B, C_seq, N);
-        cout << "Tempo sequencial: " << tempo_seq << " segundos" << endl;
+        memset(C_seq, 0, N * N * sizeof(double)); // Inicializa C_seq com zeros
+        double tempo_seq = medir_tempo_seq(dgemm_seq, A, B, C_seq, N);
+        
+        csv_file << tempo_seq;
 
-        // Versão paralela para diferentes números de threads (2 e 4)
+        // Versão paralela
         for (int threads : num_threads) {
-            double tempo_par = medir_tempo(dgemm_par, A, B, C_par, N, threads);
-            cout << "Tempo paralelo com " << threads << " threads: " << tempo_par << " segundos" << endl;
+            memset(C_par, 0, N * N * sizeof(double)); // Reinicializa C_par com zeros
+            double tempo_par = medir_tempo_par(dgemm_par, A, B, C_par, N, threads);
 
             // Cálculo de métricas
             double speedup = tempo_seq / tempo_par;
             double eficiencia = speedup / threads;
-            cout << "Speedup: " << speedup << endl;
-            cout << "Eficiência: " << eficiencia << endl;
+            
+            csv_file << "," << tempo_par << "," << speedup << "," << eficiencia;
         }
 
-        cout << endl;
+        csv_file << endl;
     }
 
     return 0;
