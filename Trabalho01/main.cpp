@@ -68,7 +68,6 @@ void dgemm_par(const double* __restrict__ A, const double* __restrict__ B, doubl
                     for (int ii = i; ii < i_max; ++ii) {
                         for (int kk = k; kk < k_max; ++kk) {
                             double a_ik = A[ii * N + kk];
-                            #pragma omp simd
                             for (int jj = j; jj < j_max; ++jj) {
                                 C[ii * N + jj] += a_ik * B[kk * N + jj];
                             }
