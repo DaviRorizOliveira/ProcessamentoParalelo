@@ -96,8 +96,6 @@ double medir_tempo_par(void (*dgemm_func)(const double*, const double*, double*,
 }
 
 int main() {
-    ios_base::sync_with_stdio(false);
-
     ofstream csv_file("resultados.csv");
     if (!csv_file.is_open()) {
         cerr << "Erro ao abrir arquivo resultados.csv" << endl;
