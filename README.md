@@ -30,7 +30,7 @@ Execute o arquivo main
 ```
 Posteriormente, execute o `arquivo analise.py`, para visualização dos dados.
 ```bash
-python3 analisador.py
+python3 analise.py
 ```
 
 #### Método 2: (python)
