@@ -42,7 +42,7 @@ def Graficos(vetorDf) :
     x = []
     termoatual = 0
     razao = 0.5
-    limite = 15
+    limite = 10
     while termoatual <= limite:
         x.append(termoatual)
         termoatual += razao
