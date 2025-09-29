@@ -16,13 +16,26 @@ Este projeto implementa a multiplicação de matrizes (DGEMM) em versões sequen
 - Compilador C++ com suporte a OpenMP (g++ ou clang++)
 - Python 3.12+ com as bibliotecas: pandas, matplotlib
 
-### Compilação e Execução
+### Compilação, execução e visualização
 
-#### Método 1: Usando o Script Python (Recomendado)
+#### Método 1: (C++ e Python)
 
-O algoritmo `analisador.py` automatiza a compilação, execução e análise:
-
+Caso ainda não tenha compilado o main.cpp
+```bash
+g++ -o main -Wall -O3 -fopenmp -march=native -mfma main.cpp
+```
+Execute o arquivo main
+```bash
+./main
+```
+Posteriormente, execute o `arquivo analise.py`, para visualização dos dados.
 ```bash
 python3 analisador.py
+```
+
+#### Método 2: (python)
+Execute o arquivo `run.py`, irá fazer todo processo automatizado.
+```bash
+python3 run.py
 ```
 ### [Relatório do Projeto 1](https://docs.google.com/document/d/1PRxJCbYw2ydfvzLtNcZFzmeyUYP9l9qnrQP6-961W_4/edit?usp=sharing)
