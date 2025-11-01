@@ -215,6 +215,7 @@ int main(int argc, char** argv) {
             cerr << "Erro ao abrir resultados.csv\n";
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
+        // Cbeçalho do CSV
         csv << "tamMatriz,tempoSequencial,"
             << "tempo2Thread,speedup2Thread,eficiencia2Thread,delta2Thread,"
             << "tempo4Thread,speedup4Thread,eficiencia4Thread,delta4Thread,"
@@ -230,17 +231,17 @@ int main(int argc, char** argv) {
     for (int N : sizes) {
         double* A = nullptr;
         double* B = nullptr;
-        double* Cseq = nullptr;
+        double* C_seq = nullptr;
         double tempo_seq = 0.0;
 
         // Geração e cálculo sequencial (rank 0)
         if (rank == 0) {
             A = gerar_matriz(N);
             B = gerar_matriz(N);
-            Cseq = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
-            memset(Cseq, 0, N * N * sizeof(double));
+            C_seq = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
+            memset(C_seq, 0, N * N * sizeof(double));
             
-            tempo_seq = medir_tempo_seq(dgemm_seq, A, B, Cseq, N);
+            tempo_seq = medir_tempo_seq(dgemm_seq, A, B, C_seq, N);
         }
 
         // Broadcast do tempo sequencial para todos os processos
@@ -252,24 +253,25 @@ int main(int argc, char** argv) {
         if (rank == 0) {
             for (size_t idx = 0 ; idx < threads_vec.size() ; ++idx) {
                 int nt = threads_vec[idx];
-                double* Cpar = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
-                memset(Cpar, 0, N * N * sizeof(double));
+                double* C_par = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
+                memset(C_par, 0, N * N * sizeof(double));
                 
-                tempos_omp[idx] = medir_tempo_par(dgemm_par, A, B, Cpar, N, nt);
+                tempos_omp[idx] = medir_tempo_par(dgemm_par, A, B, C_par, N, nt);
                 
                 // Validação
                 double delta;
-                if (!validar_resultado(Cseq, Cpar, N, delta)) {
+                if (!validar_resultado(C_seq, C_par, N, delta)) {
                     cerr << "ERRO: Resultado OpenMP (" << nt << " threads) diverge! Delta=" << delta << "\n";
                 }
                 deltas_omp[idx] = delta;
-                free(Cpar);
+                free(C_par);
             }
         }
 
+        // Barrier para sincronizar todos os processos antes do MPI
         MPI_Barrier(MPI_COMM_WORLD);
 
-        // Preparação para MPI
+        // Preparação para o MPI
         if (rank != 0) {
             A = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
             B = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
@@ -279,47 +281,51 @@ int main(int argc, char** argv) {
         MPI_Bcast(A, N * N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         MPI_Bcast(B, N * N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-        // Alocação de Cmpi em todos os processos
-        double* Cmpi = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
-        memset(Cmpi, 0, N * N * sizeof(double));
+        // Alocação de C_mpi em todos os processos
+        double* C_mpi = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
+        memset(C_mpi, 0, N * N * sizeof(double));
 
         // Medição MPI
         MPI_Barrier(MPI_COMM_WORLD);
-        double tempo_mpi = medir_tempo_mpi(dgemm_mpi, A, B, Cmpi, N, size, rank);
+        double tempo_mpi = medir_tempo_mpi(dgemm_mpi, A, B, C_mpi, N, size, rank);
 
         // Gravação dos resultados (rank 0)
         if (rank == 0) {
             // Validação MPI
             double delta_mpi;
-            if (!validar_resultado(Cseq, Cmpi, N, delta_mpi)) {
+            if (!validar_resultado(C_seq, C_mpi, N, delta_mpi)) {
                 cerr << "ERRO: Resultado MPI diverge! Delta=" << delta_mpi << "\n";
             }
 
             ofstream csv("resultados.csv", ios::app);
             csv << N << "," << fixed << setprecision(6) << tempo_seq;
 
+            // Cálculo de métricas do OpenMP
             for (size_t idx = 0 ; idx < threads_vec.size() ; ++idx) {
                 double sp = tempo_seq / tempos_omp[idx];
                 double ef = sp / threads_vec[idx];
                 csv << "," << tempos_omp[idx] << "," << sp << "," << ef << "," << scientific << deltas_omp[idx];
             }
 
+            // Cálculo de métricas do MPI
             double sp_mpi = tempo_seq / tempo_mpi;
             double ef_mpi = sp_mpi / size;
             csv << "," << fixed << tempo_mpi << "," << sp_mpi << "," << ef_mpi << "," << scientific << delta_mpi << "\n";
             csv.close();
 
-            free(Cseq);
+            free(C_seq);
         }
 
-        // Limpeza
+        // Libera memória
         free(A);
         free(B);
-        free(Cmpi);
+        free(C_mpi);
 
+        // Barrier para garantir que todos os processos terminaram antes de iniciar a próxima iteração
         MPI_Barrier(MPI_COMM_WORLD);
     }
 
+    // Finalização do MPI
     MPI_Finalize();
     return 0;
 }
