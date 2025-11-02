@@ -211,17 +211,20 @@ int main(int argc, char** argv) {
 
     // Cabeçalho do CSV (apenas rank 0)
     if (rank == 0) {
-        csv.open("resultados.csv");
+        csv.open("resultados.csv", ios::app);
         if (!csv.is_open()) {
             cerr << "Erro ao abrir resultados.csv\n";
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
         // Cbeçalho do CSV
-        csv << "tamMatriz,tempoSequencial,"
-            << "tempo2Thread,speedup2Thread,eficiencia2Thread,delta2Thread,"
-            << "tempo4Thread,speedup4Thread,eficiencia4Thread,delta4Thread,"
-            << "tempo8Thread,speedup8Thread,eficiencia8Thread,delta8Thread,"
-            << "tempoMPI,speedupMPI,eficienciaMPI,deltaMPI\n";
+
+        if(csv.tellp() == 0){
+            csv << "tamMatriz,tempoSequencial,"
+                << "tempo2Thread,speedup2Thread,eficiencia2Thread,delta2Thread,"
+                << "tempo4Thread,speedup4Thread,eficiencia4Thread,delta4Thread,"
+                << "tempo8Thread,speedup8Thread,eficiencia8Thread,delta8Thread,"
+                << "tempoMPI,speedupMPI,eficienciaMPI,deltaMPI\n";
+        }
     }
 
     vector<int> sizes = {128, 256, 512, 1024, 2048, 4096};
