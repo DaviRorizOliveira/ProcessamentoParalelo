@@ -207,10 +207,11 @@ int main(int argc, char** argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &size); // Número de processos
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); // Rank do processo atual
 
+    ofstream csv;
+
     // Cabeçalho do CSV (apenas rank 0)
     if (rank == 0) {
-        // Abre o arquivo CSV para escrita e escreve o cabeçalho
-        ofstream csv("resultados.csv");
+        csv.open("resultados.csv");
         if (!csv.is_open()) {
             cerr << "Erro ao abrir resultados.csv\n";
             MPI_Abort(MPI_COMM_WORLD, 1);
@@ -221,11 +222,10 @@ int main(int argc, char** argv) {
             << "tempo4Thread,speedup4Thread,eficiencia4Thread,delta4Thread,"
             << "tempo8Thread,speedup8Thread,eficiencia8Thread,delta8Thread,"
             << "tempoMPI,speedupMPI,eficienciaMPI,deltaMPI\n";
-        csv.close();
     }
 
     vector<int> sizes = {128, 256, 512, 1024, 2048, 4096};
-    vector<int> threads_vec = {2, 4, 8};
+    vector<int> num_threads = {2, 4, 8};
 
     // Percorre o vetor de tamanhos de matrizes
     for (int N : sizes) {
@@ -248,11 +248,11 @@ int main(int argc, char** argv) {
         MPI_Bcast(&tempo_seq, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
         // OpenMP (apenas rank 0)
-        vector<double> tempos_omp(threads_vec.size());
-        vector<double> deltas_omp(threads_vec.size());
+        vector<double> tempos_omp(num_threads.size());
+        vector<double> deltas_omp(num_threads.size());
         if (rank == 0) {
-            for (size_t idx = 0 ; idx < threads_vec.size() ; ++idx) {
-                int nt = threads_vec[idx];
+            for (size_t idx = 0 ; idx < num_threads.size() ; ++idx) {
+                int nt = num_threads[idx];
                 double* C_par = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
                 memset(C_par, 0, N * N * sizeof(double));
                 
@@ -268,9 +268,6 @@ int main(int argc, char** argv) {
             }
         }
 
-        // Barrier para sincronizar todos os processos antes do MPI
-        MPI_Barrier(MPI_COMM_WORLD);
-
         // Preparação para o MPI
         if (rank != 0) {
             A = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
@@ -285,8 +282,7 @@ int main(int argc, char** argv) {
         double* C_mpi = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
         memset(C_mpi, 0, N * N * sizeof(double));
 
-        // Medição MPI
-        MPI_Barrier(MPI_COMM_WORLD);
+        // Medição do tempo do MPI
         double tempo_mpi = medir_tempo_mpi(dgemm_mpi, A, B, C_mpi, N, size, rank);
 
         // Gravação dos resultados (rank 0)
@@ -297,13 +293,12 @@ int main(int argc, char** argv) {
                 cerr << "ERRO: Resultado MPI diverge! Delta=" << delta_mpi << "\n";
             }
 
-            ofstream csv("resultados.csv", ios::app);
             csv << N << "," << fixed << setprecision(6) << tempo_seq;
 
             // Cálculo de métricas do OpenMP
-            for (size_t idx = 0 ; idx < threads_vec.size() ; ++idx) {
+            for (size_t idx = 0 ; idx < num_threads.size() ; ++idx) {
                 double sp = tempo_seq / tempos_omp[idx];
-                double ef = sp / threads_vec[idx];
+                double ef = sp / num_threads[idx];
                 csv << "," << tempos_omp[idx] << "," << sp << "," << ef << "," << scientific << deltas_omp[idx];
             }
 
@@ -311,7 +306,6 @@ int main(int argc, char** argv) {
             double sp_mpi = tempo_seq / tempo_mpi;
             double ef_mpi = sp_mpi / size;
             csv << "," << fixed << tempo_mpi << "," << sp_mpi << "," << ef_mpi << "," << scientific << delta_mpi << "\n";
-            csv.close();
 
             free(C_seq);
         }
@@ -320,9 +314,11 @@ int main(int argc, char** argv) {
         free(A);
         free(B);
         free(C_mpi);
+    }
 
-        // Barrier para garantir que todos os processos terminaram antes de iniciar a próxima iteração
-        MPI_Barrier(MPI_COMM_WORLD);
+    // Fecha o arquivo CSV (rank 0)
+    if (rank == 0) {
+        csv.close();
     }
 
     // Finalização do MPI
