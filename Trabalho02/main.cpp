@@ -247,9 +247,6 @@ int main(int argc, char** argv) {
             tempo_seq = medir_tempo_seq(dgemm_seq, A, B, C_seq, N);
         }
 
-        // Broadcast do tempo sequencial para todos os processos
-        MPI_Bcast(&tempo_seq, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
         // OpenMP (apenas rank 0)
         vector<double> tempos_omp(num_threads.size());
         vector<double> deltas_omp(num_threads.size());
@@ -264,7 +261,7 @@ int main(int argc, char** argv) {
                 // Validação
                 double delta;
                 if (!validar_resultado(C_seq, C_par, N, delta)) {
-                    cerr << "ERRO: Resultado OpenMP (" << nt << " threads) diverge! Delta=" << delta << "\n";
+                    cerr << "ERRO: Resultado OpenMP (" << nt << " threads) diverge! Delta = " << delta << "\n";
                 }
                 deltas_omp[idx] = delta;
                 free(C_par);
@@ -276,9 +273,8 @@ int main(int argc, char** argv) {
             A = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
             B = static_cast<double*>(aligned_alloc(64, N * N * sizeof(double)));
         }
-        
-        // Broadcast de A e B para todos os processos
-        MPI_Bcast(A, N * N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+        // Broadcast de B para todos os processos
         MPI_Bcast(B, N * N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
         // Alocação de C_mpi em todos os processos
@@ -293,7 +289,7 @@ int main(int argc, char** argv) {
             // Validação MPI
             double delta_mpi;
             if (!validar_resultado(C_seq, C_mpi, N, delta_mpi)) {
-                cerr << "ERRO: Resultado MPI diverge! Delta=" << delta_mpi << "\n";
+                cerr << "ERRO: Resultado MPI diverge! Delta = " << delta_mpi << "\n";
             }
 
             csv << N << "," << fixed << setprecision(6) << tempo_seq;
